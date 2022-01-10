@@ -1,129 +1,84 @@
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
+from random import randint
+from base64 import b64encode, b64decode
+import hashlib
+from Cryptodome.Cipher import AES
+from Cryptodome.Random import get_random_bytes
+f1 = open('Save.txt','a')
+f2 = open('Key.txt','a')
+f1.close()
+f2.close()
+Acc_mas = []
+Key_mas = []
 
-# C extensions
-*.so
+def Create_Ac():
+    log = input('Введите логин').replace(" ", "")    #Ввод логина ,пароля + проверка пароля.
+    while True:
+        pas = input('Введите пароль. Пароль должен сожержать не менее 6 символов. Прописные и заглавные буквы, а так же иметь числа.').replace(" ", "")
+        if len(pas) >=6 and any(map(str.isdigit, pas)) == True and any(map(str.isupper, pas)) == True and \
+                any(map(str.islower, pas)) == True:
+            break
+        else:
+            print('Пароль введен некорректно')
+    lenkey = int(input('Введите длину ключа'))
+    key = random_with_N_digits(lenkey)
+    return log, pas, key
+def random_with_N_digits(n):     # генератор пароля
+    range_start = 10**(n-1)
+    range_end = (10**n)-1
+    return randint(range_start, range_end)
 
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
+def encrypt(plain_text, password):  #Функция шифрования
+    salt = get_random_bytes(AES.block_size)
+    private_key = hashlib.scrypt(
+        password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+    cipher_config = AES.new(private_key, AES.MODE_GCM)
+    cipher_text, tag = cipher_config.encrypt_and_digest(bytes(plain_text, 'utf-8'))
+    return {
+        'cipher_text': b64encode(cipher_text).decode('utf-8'),
+        'salt': b64encode(salt).decode('utf-8'),
+        'nonce': b64encode(cipher_config.nonce).decode('utf-8'),
+        'tag': b64encode(tag).decode('utf-8')
+    }
+def decrypt(enc_dict, password):   #Функция расшифрование
+    salt = b64decode(enc_dict['salt'])
+    cipher_text = b64decode(enc_dict['cipher_text'])
+    nonce = b64decode(enc_dict['nonce'])
+    tag = b64decode(enc_dict['tag'])
+    private_key = hashlib.scrypt(
+        password.encode(), salt=salt, n=2**14, r=8, p=1, dklen=32)
+    cipher = AES.new(private_key, AES.MODE_GCM, nonce=nonce)
+    decrypted = cipher.decrypt_and_verify(cipher_text, tag)
+    return decrypted
 
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
 
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
 
-# Translations
-*.mo
-*.pot
 
-# Django stuff:
-*.log
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
+while True:
+   Move = input('Что бы создать новый аккаунт введите "1" (в документ сохраняется зашифрованный вид) \nЧто бы узнать логин и пароль под номером N введите "2" \nЧто бы сохраниться и выйти "3"')
+   if Move == '1':        #Добавить аккаунт + шифрование
+       Account = Create_Ac()
+       Log_Pas = Account[0] + ' ' + Account[1]
+       Key = str(Account[2])
+       Acc_mas += [encrypt(Log_Pas,Key)]
+       Key_mas += [Key]
+       print('Аккаунт с логином "'+ Account[0] + '"  успешно зашифрован.')
 
-# Flask stuff:
-instance/
-.webassets-cache
 
-# Scrapy stuff:
-.scrapy
+   elif Move == '2':     #Вывести N-ый аккаунт
+       N = int(input('Введите номер N аккаунта который хотите расшифровать и вывести на экран'))
+       print('Вызываемый логин и пароль успешно расшифрован. \n Логин и апроль: \n'+decrypt(Acc_mas[N-1], Key_mas[N-1]).decode('utf-8'))
 
-# Sphinx documentation
-docs/_build/
 
-# PyBuilder
-target/
 
-# Jupyter Notebook
-.ipynb_checkpoints
+   else:            #Выход
+       for i in Acc_mas:
+         d2 = i
+         with open('Save.txt','a') as out:
+              for key,val in d2.items():
+                   out.write('{}:{}\n'.format(key,val))
+       f = open('Key.txt', 'a')
+       for i in Key_mas:
+          f.write(i+' ')
 
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-.python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
+       break
